@@ -5,7 +5,7 @@
 ## 跑起来
 
 ```bash
-cd ~/Documents/项目/hoi4-advisor
+cd ~/Documents/项目/网页与软件/hoi4-advisor
 npm install        # 第一次
 npm start
 ```
