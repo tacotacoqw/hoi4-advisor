@@ -1,0 +1,37 @@
+<!doctype html><meta charset="utf-8">
+<script src="../renderer/live.js"></script>
+<script>
+(async () => {
+  const log = (s) => probe.log('PROBE ' + s);
+  const seen = { started: false, delegation: false, said: '', heard: '' };
+  // 合成语音 → MediaStream，当作麦克风
+  const ctx = new AudioContext();
+  const buf = await ctx.decodeAudioData((await probe.audio()).buffer);
+  const dest = ctx.createMediaStreamDestination();
+  const osc = ctx.createConstantSource(); osc.offset.value = 0; osc.connect(dest); osc.start(); // 保持轨道有数据
+  let client;
+  client = new LiveClient({
+    createSession: (sdp) => probe.liveCreate(sdp),
+    onEvent: (ev) => {
+      if (ev.type === 'session.started') {
+        seen.started = true; log('session.started ' + ev.session.id);
+        setTimeout(() => { const s = ctx.createBufferSource(); s.buffer = buf; s.connect(dest); s.start(); log('播放问题语音'); }, 1500);
+      } else if (ev.type === 'session.input_transcript.delta') seen.heard += ev.delta;
+      else if (ev.type === 'session.output_transcript.delta') seen.said += ev.delta;
+      else if (ev.type === 'session.delegation.created') {
+        seen.delegation = true; log('delegation.created ' + ev.delegation.id + ' | 听到：' + seen.heard);
+        setTimeout(() => client.append('commentary', '结论：能走，终点国策是罗曼诺夫王朝复辟，要先点败而不馁。', ev.delegation.id), 2000);
+      } else if (ev.type === 'error') log('error ' + JSON.stringify(ev.error));
+      else if (!/delta|usage/.test(ev.type)) log('事件 ' + ev.type);
+    },
+  });
+  try { await client.connect(dest.stream); } catch (e) { log('接通失败 ' + e.message); probe.done(1); return; }
+  setTimeout(async () => {
+    const closed = await client.close();
+    log('听到用户：' + seen.heard);
+    log('它说了：' + seen.said);
+    log(`结果 started=${seen.started} delegation=${seen.delegation} 用量=${closed && closed.usage ? closed.usage.seconds + '秒' : '未确认'}`);
+    probe.done(seen.started && seen.delegation && !!closed && /罗曼诺夫|败而不馁/.test(seen.said) ? 0 : 1);
+  }, 30000);
+})();
+</script>

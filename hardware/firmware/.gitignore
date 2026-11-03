@@ -1,0 +1,4 @@
+.pio/
+managed_components/
+sdkconfig.xiao_esp32s3
+dependencies.lock

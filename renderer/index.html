@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' blob:; img-src 'self' data: gfx:">
+<title>参谋电报机</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="no-gfx">
+<!--
+THESIS: 这是《钢铁雄心4》里的一扇窗，不是聊天软件：回答以国策树的形式推演出来，真国策图标连成链，拒绝气泡对话的默认样子。
+OWN-WORLD: 游戏本机贴图——铆钉钢窗（tiled_window_2b_border 九宫格）、碳纹底、顶栏国旗方框、月桂铭牌、铜按钮；金字 #e2c47c、羊皮电报条、红色锁死带斜纹。
+STORY: 玩家一眼看到“能不能走”，顺着图标链知道先点什么、哪里互斥，听到电报声；需要细节再展开参谋详述。
+FIRST VIEWPORT: 顶栏（国旗方框+金字标题+状态灯，下沿状态条）→ 电报记录 → 底部铜色「接通」「发报」。
+SIGNATURE: 月桂铭牌写结论，下面是可折叠的国策链；锁死节点灰图标+红斜纹，互斥用 ✕ 标签而不只靠颜色。seed 9a57090e。
+-->
+<header class="bar">
+  <div class="flagbox"><img id="flag" alt="当前国家国旗" hidden></div>
+  <div class="titleline">
+    <span id="lamp" class="lamp"></span>
+    <span class="title">参谋电报机</span>
+  </div>
+  <div class="actions">
+    <button id="btnNew" class="btn small" title="新对话">新电</button>
+    <button id="btnSettings" class="btn small" title="设置">设置</button>
+    <button id="btnHide" class="btn small icon" title="收起">—</button>
+  </div>
+  <div id="status" class="status">正在读取局面…</div>
+</header>
+
+<main id="log" class="log">
+  <div class="msg sys"><span id="intro">按住「话筒」口述电文，或者直接拟电文发报。</span></div>
+</main>
+
+<footer class="input">
+  <button id="btnMic" class="btn mic" title="按住说话">话筒</button>
+  <button id="btnHang" class="btn small hang hidden" title="挂断">挂断</button>
+  <textarea id="text" rows="1" placeholder="拟电文…（回车发报）"></textarea>
+  <button id="btnSend" class="btn send">发报</button>
+</footer>
+
+<section id="settings" class="settings hidden">
+  <h3>参谋部设置</h3>
+  <fieldset>
+    <legend>大脑</legend>
+    <label>OpenAI API Key <input id="sKey" type="password" placeholder="sk-…（留空=不修改）"></label>
+    <label>接口地址 baseURL <input id="sBase" placeholder="https://api.openai.com/v1"></label>
+    <label>接口类型
+      <select id="sStyle"><option value="responses">Responses（官方推荐）</option><option value="chat">Chat Completions（中转兼容）</option></select>
+    </label>
+    <label>主模型 <span class="row"><input id="sModel" list="modelList"><button id="sFetch" class="btn small" type="button">获取模型</button></span></label>
+    <div id="sModels" class="hint"></div>
+    <datalist id="modelList"></datalist>
+    <label>思考强度 <select id="sEffort"><option value="">不设置</option><option>low</option><option>medium</option><option>high</option></select></label>
+  </fieldset>
+  <fieldset>
+    <legend>电台</legend>
+    <label>语音模式
+      <select id="sVoiceMode"><option value="local">普通：本机转写 + 朗读</option><option value="live">GPT Live 实时通话（官方 Key，约 0.35 元/分钟）</option></select>
+    </label>
+    <label>GPT Live 官方 Key <input id="sLiveKey" type="password" placeholder="sk-…（官方 OpenAI，留空=不修改）"></label>
+    <label>GPT Live 音色 / 无人说话自动挂断（秒） <span class="row"><input id="sLiveVoice" placeholder="marin"><input id="sLiveIdle" class="short" type="number" min="0"></span></label>
+    <label class="check"><input id="sLiveTts" type="checkbox"> 通话也用朗读的声音（不用 GPT Live 原声）</label>
+    <label class="check"><input id="sPtt" type="checkbox"> 通话时按住「讲话」才收音（防旁边人声）</label>
+    <label>语音转写
+      <select id="sSttEngine"><option value="local">本机 Whisper（免费，不联网）</option><option value="openai">走接口（填下面的转写模型）</option></select>
+    </label>
+    <label>转写模型（走接口时用） <input id="sStt" list="modelList"></label>
+    <label>朗读
+      <select id="sTtsEngine"><option value="system">Mac 自带中文声音（免费）</option><option value="openai">OpenAI 朗读（有官方 Key 就走官方，音色同 GPT Live）</option><option value="doubao">豆包（火山引擎，中文最像真人）</option><option value="fish">Fish Audio（社区音色）</option></select>
+    </label>
+    <label>Fish Audio API Key <input id="sFishKey" type="password" placeholder="留空=不修改"></label>
+    <label>Fish Audio 音色 ID <input id="sFishVoice" placeholder="67fefbd7825c4bc0b9857024a65738c6（老牧师）"></label>
+    <label>豆包 AppID / Token <span class="row"><input id="sDbApp" class="short"><input id="sDbToken" type="password" placeholder="留空=不修改"></span></label>
+    <label>豆包音色 <input id="sDbVoice" placeholder="zh_male_baqiqingshu_mars_bigtts（霸气青叔）"></label>
+    <label>朗读模型 / 音色（走接口时用） <span class="row"><input id="sTts" list="modelList"><input id="sVoice" class="short" placeholder="同通话"></span></label>
+  </fieldset>
+  <fieldset>
+    <legend>杂项</legend>
+    <label>全局快捷键 <input id="sHotkey" placeholder="CommandOrControl+Shift+K"></label>
+    <label class="check"><input id="sProxy" type="checkbox"> 走系统代理（国内中转连不上就关掉）</label>
+    <label class="check"><input id="sSpeak" type="checkbox"> 朗读回答</label>
+    <label class="check"><input id="sBeep" type="checkbox"> 回答时「滴滴滴」</label>
+    <label class="check"><input id="sTick" type="checkbox"> 思考时播放收报声</label>
+    <label class="check"><input id="sBattle" type="checkbox"> 播报时战场音效（炮响、枪声）</label>
+  </fieldset>
+  <div class="row end"><button id="sCancel" class="btn small">取消</button><button id="sSave" class="btn send">保存</button></div>
+</section>
+
+<div id="toast" class="toast hidden"></div>
+<script src="hw.js"></script>
+<script src="battle-sfx.js"></script>
+<script src="live.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

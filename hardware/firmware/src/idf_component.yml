@@ -1,0 +1,3 @@
+# USB Audio 组件放在 ../components/usb_device_uac（本地副本），它依赖的 tinyusb 会自动下载
+dependencies:
+  idf: ">=5.0"

@@ -1,0 +1,19 @@
+{
+  "name": "hoi4-advisor",
+  "version": "0.1.0",
+  "description": "钢铁雄心4 参谋电报机：后台检测游戏，读本机游戏/模组文件，接 GPT 回答路线问题",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/smoke.js && node test/agent-mock.js && node test/vision-mock.js && node test/hw-serial.js",
+    "app": "zsh scripts/make-app.sh"
+  },
+  "devDependencies": {
+    "electron": "^43.1.1"
+  },
+  "dependencies": {
+    "@msgpack/msgpack": "^3.1.3",
+    "ws": "^8.22.0"
+  }
+}

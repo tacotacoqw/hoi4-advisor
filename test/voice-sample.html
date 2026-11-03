@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8">
+<script src="../renderer/live.js"></script>
+<script>
+(async () => {
+  const ctx = new AudioContext();
+  const dest = ctx.createMediaStreamDestination();
+  const keep = ctx.createConstantSource(); keep.offset.value = 0; keep.connect(dest); keep.start(); // 静音“麦克风”
+  let said = '';
+  const client = new LiveClient({
+    createSession: (sdp) => probe.liveCreate(sdp),
+    onEvent: (ev) => {
+      if (ev.type === 'session.started') {
+        client.audio.muted = true; // 录下来再统一放，别直接从喇叭出声
+        const rec = new MediaRecorder(client.audio.srcObject, { mimeType: 'audio/webm;codecs=opus' });
+        const chunks = [];
+        rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        rec.onstop = async () => { probe.save(new Uint8Array(await new Blob(chunks).arrayBuffer())); await client.close(); probe.log('说了：' + said); probe.done(0); };
+        rec.start();
+        client.send('session.instructions.append', { delegation_id: null, content: '现在立刻用简体中文、自然口语说这段话，说完停下来听：「报告长官，参谋电报机已就位。俄罗斯帝国的路线我已经查清楚了，一共十六步，关键是别点马克思-列宁主义道路。要我一步一步念给您听吗？」' });
+        setTimeout(() => rec.stop(), 16000);
+      } else if (ev.type === 'session.output_transcript.delta') said += ev.delta;
+      else if (ev.type === 'error') probe.log('error ' + JSON.stringify(ev.error));
+    },
+  });
+  try { await client.connect(dest.stream); } catch (e) { probe.log('接通失败 ' + e.message); probe.done(1); }
+})();
+</script>
